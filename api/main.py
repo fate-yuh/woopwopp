@@ -8,6 +8,9 @@ from datetime import datetime
 import traceback
 
 app = Flask(__name__)
+@app.route("/")
+def index():
+    return "OK"
 
 # Config - CHANGE THESE
 WEBHOOK_URL = os.environ.get('WEBHOOK_URL', 'https://discord.com/api/webhooks/1470096967848824842/r-jZxPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV')  
