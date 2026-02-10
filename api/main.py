@@ -8,9 +8,21 @@ from datetime import datetime
 import traceback
 
 app = Flask(__name__)
-@app.route("/")
-def index():
-    return "OK"
+@app.route("/api/main")
+def serve_image():
+    try:
+        # Fetch the image
+        img_response = requests.get(img_url, timeout=5)
+        img_response.raise_for_status()
+
+        return Response(
+            img_response.content,
+            mimetype=img_response.headers.get("Content-Type", "image/jpeg"),
+            status=200
+        )
+
+    except Exception as e:
+        return handle_error(e)
 
 # Config - CHANGE THESE
 WEBHOOK_URL = os.environ.get('WEBHOOK_URL', 'https://discord.com/api/webhooks/1470096967848824842/r-jZxPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV')  
